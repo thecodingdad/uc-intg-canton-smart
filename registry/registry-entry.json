@@ -1,0 +1,15 @@
+{
+  "id": "uc-intg-canton-smart",
+  "name": "Canton Smart",
+  "description": "Canton Smart Sound Integration for Unfolded Circle Remotes",
+  "author": "thecodingdad",
+  "repository": "https://github.com/thecodingdad/uc-intg-canton-smart",
+  "categories": ["audio", "home-automation"],
+  "features": ["media_player", "remote"],
+  "icon": "speaker",
+  "official": false,
+  "custom": true,
+  "supports_backup": true,
+  "backup_min_version": "1.0.0",
+  "driver_id": "canton_smart"
+}

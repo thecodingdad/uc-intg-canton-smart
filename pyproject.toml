@@ -1,0 +1,20 @@
+[project]
+name = "uc-intg-canton-smart"
+version = "1.0.0"
+description = "Canton Smart Sound integration for Unfolded Circle Remote Two/3"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MPL-2.0"
+
+authors = [
+    { name = "thecodingdad" }
+]
+
+urls.Homepage = "https://github.com/thecodingdad/uc-intg-canton-smart"
+urls.Repository = "https://github.com/thecodingdad/uc-intg-canton-smart"
+
+dependencies = [
+    "ucapi==0.6.0",
+    "ucapi-framework==1.9.6",
+    "pyee>=9.0",
+]

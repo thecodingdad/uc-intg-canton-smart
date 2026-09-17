@@ -1,0 +1,40 @@
+{
+  "driver_id": "canton_smart",
+  "version": "1.0.0",
+  "min_core_api": "0.20.0",
+  "name": { "en": "Canton Smart", "de": "Canton Smart" },
+  "icon": "uc:integration",
+  "description": {
+    "en": "Local control of Canton Smart Sound devices (Soundbar 10/9, Sounddeck 100, Soundbox 3, Smart Connect 5.1, Smart Amp 5.1) over LUCI and Tunnel protocols.",
+    "de": "Lokale Steuerung von Canton Smart Sound Geräten (Soundbar 10/9, Sounddeck 100, Soundbox 3, Smart Connect 5.1, Smart Amp 5.1) über die LUCI- und Tunnel-Protokolle."
+  },
+  "developer": {
+    "name": "thecodingdad",
+    "url": "https://github.com/thecodingdad"
+  },
+  "home_page": "https://github.com/thecodingdad/uc-intg-canton-smart",
+  "setup_data_schema": {
+    "title": {
+      "en": "Canton Smart setup",
+      "de": "Canton Smart Einrichtung"
+    },
+    "settings": [
+      {
+        "id": "info",
+        "label": {
+          "en": "Setup process",
+          "de": "Setup Fortschritt"
+        },
+        "field": {
+          "label": {
+            "value": {
+              "en": "Canton Smart Sound devices are discovered automatically on the local network. If discovery fails, the device can be added manually with its IP address.",
+              "de": "Canton Smart Sound Geräte werden automatisch im lokalen Netzwerk gefunden. Falls die Suche fehlschlägt, kann das Gerät manuell über seine IP-Adresse hinzugefügt werden."
+            }
+          }
+        }
+      }
+    ]
+  },
+  "release_date": "2026-09-17"
+}
