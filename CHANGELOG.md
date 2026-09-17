@@ -18,9 +18,8 @@ integration to the Unfolded Circle Remote Two/3.
   Bluetooth pairing — filtered per device model
 - Optional switch, select and sensor entities for device settings
 - Configuration backup and restore, compatible with the Unfolded Circle Integration Manager
-- Input names follow the device: the source list shows the names assigned under
-  "System Setup -> Input Setup -> Input Name" (TV, BDP, SAT, CD, DVD, CAM, REC, PAD, POD, TAB, TUN,
-  DAB, PS, VCR, ATV, PC, AUX), unnamed inputs are hidden
+- Inputs are addressed by physical source, so every input is selectable. The name assigned under
+  "System Setup -> Input Setup -> Input Name" is shown in brackets, e.g. "HDMI 2 (PC)"
 - Adaptive tunnel access: the device only accepts one tunnel connection, so the integration holds it
   permanently while it is free and falls back to short sessions plus polling when another controller
   (Canton app, Home Assistant) takes over

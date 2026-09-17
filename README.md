@@ -10,8 +10,8 @@ on [ucapi-framework](https://github.com/JackJPowell/ucapi-framework).
 
 - **Local control** over the reverse-engineered LUCI and Tunnel protocols
 - **Auto-discovery** of Canton devices via LSSDP, manual setup as fallback
-- **Device-named inputs**: the source list shows the names configured on the device under
-  *System Setup → Input Setup → Input Name*; inputs left unnamed are hidden
+- **All inputs selectable**: the source list follows the device's physical inputs and shows the
+  name assigned under *System Setup → Input Setup → Input Name* in brackets, e.g. `HDMI 2 (PC)`
 - **Media player entity**: power, volume, mute, input or preset selection, sound modes,
   play/pause/stop/next/previous/seek/shuffle/repeat and media metadata (title, artist, album,
   cover art) for NET and BT sources
@@ -70,7 +70,7 @@ After the device is selected, the setup wizard asks for:
 | Option | Description |
 |---|---|
 | **Device model** | Decides which OSD menu settings exist. Pre-filled from discovery. |
-| **Source list** | Whether the media player source list shows the **inputs** (as named on the device) or the configured **presets**. Inputs and presets stay available as simple commands either way. |
+| **Source list** | Whether the media player source list shows the **inputs** (physical inputs with their device names) or the configured **presets**. Inputs and presets stay available as simple commands either way. |
 | **Additional settings entities** | Creates switch, select and sensor entities for the device settings. Off by default — the media player and remote entity already expose every function. |
 
 All three can be changed later: start the setup again and choose

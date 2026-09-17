@@ -35,7 +35,7 @@ async def handle_simple_command(  # pylint: disable=too-many-return-statements
     :return: True if the command was known and executed, False otherwise
     """
     if command in INPUT_COMMANDS:
-        await device.set_input(INPUT_COMMANDS[command])
+        await device.set_input_source(INPUT_COMMANDS[command])
         return True
 
     if command in MODE_COMMANDS:

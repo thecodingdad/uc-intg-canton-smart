@@ -32,6 +32,7 @@ from const import (
     DeviceConfig,
     INPUT_COMMANDS,
     MODE_COMMANDS,
+    TUNNEL_PHYSICAL_SOURCES,
     simple_commands_for_model,
 )
 from device import CantonDevice
@@ -103,7 +104,10 @@ def _ui_pages(device_config: DeviceConfig) -> list[UiPage]:
         _grid_page(
             "canton_sources",
             "Sources",
-            [(name, command) for command, name in INPUT_COMMANDS.items()],
+            [
+                (TUNNEL_PHYSICAL_SOURCES[source_id], command)
+                for command, source_id in INPUT_COMMANDS.items()
+            ],
         ),
         _grid_page(
             "canton_modes",

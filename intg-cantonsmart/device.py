@@ -24,6 +24,7 @@ from ucapi_framework.helpers import MediaPlayerAttributes
 
 from const import (
     CMD_GET,
+    input_label,
     CMD_SET,
     DeviceConfig,
     EQ_MAX,
@@ -45,7 +46,6 @@ from const import (
     INPUT_NAME_UNASSIGNED,
     PRESET_COUNT,
     RECONNECT_BACKOFF_MAX,
-    SELECTABLE_INPUT_NAMES,
     SOURCE_MODE_PRESETS,
     TCMD_BT_PAIR,
     TCMD_EQ_GET,
@@ -65,7 +65,6 @@ from const import (
     TCMD_VOLUME_GET,
     TCMD_VOLUME_SET,
     TUNNEL_INPUT_NAMES,
-    TUNNEL_INPUT_NAMES_REVERSE,
     TUNNEL_PHYSICAL_SOURCES,
     TUNNEL_PLAY_MODES,
     TUNNEL_PLAY_MODES_REVERSE,
@@ -106,6 +105,7 @@ class CantonState:
     eq_mid: int = 0
     eq_bass: int = 0
     eq_range: int = 10
+    # sourceId -> (nameId, playModeId) as reported by SOURCE_INFO
     input_map: dict[int, tuple[int, int]] = field(default_factory=dict)
     menu_values: dict[int, int] = field(default_factory=dict)
     active_preset: int = 0
@@ -223,24 +223,22 @@ class CantonDevice(PersistentConnectionDevice):
         """
         Return inputs or presets, depending on the configured source list mode.
 
-        The input list follows the device: every physical input carries a name assigned
-        under "System Setup -> Input Setup -> Input Name", reported by SOURCE_INFO.
-        Inputs left unnamed ("---") are skipped. Falls back to all selectable names
-        while the mapping is unknown.
+        Inputs are listed by physical source as reported by SOURCE_INFO, so every input
+        is selectable. The name assigned under "System Setup -> Input Setup -> Input
+        Name" is shown in brackets, e.g. "HDMI 2 (PC)". Falls back to all known physical
+        sources while the mapping is unknown.
         """
         if self._device_config.source_list_mode == SOURCE_MODE_PRESETS:
             presets = self.data.configured_presets or list(range(1, PRESET_COUNT + 1))
             return [f"Preset {i}" for i in presets]
 
-        names = [
-            TUNNEL_INPUT_NAMES[name_id]
-            # Sort by physical source so the order matches the device
-            for name_id, (source_id, _) in sorted(
-                self.data.input_map.items(), key=lambda item: item[1][0]
-            )
-            if name_id != INPUT_NAME_UNASSIGNED and name_id in TUNNEL_INPUT_NAMES
+        labels = [
+            input_label(source_id, name_id)
+            for source_id, (name_id, _) in sorted(self.data.input_map.items())
         ]
-        return names or SELECTABLE_INPUT_NAMES
+        return labels or [
+            input_label(sid, INPUT_NAME_UNASSIGNED) for sid in TUNNEL_PHYSICAL_SOURCES
+        ]
 
     @property
     def source(self) -> str | None:
@@ -248,7 +246,9 @@ class CantonDevice(PersistentConnectionDevice):
         if self._device_config.source_list_mode == SOURCE_MODE_PRESETS:
             preset = self.data.active_preset
             return f"Preset {preset}" if preset > 0 else None
-        return self.data.input_name or None
+        if not self.data.source_id:
+            return None
+        return input_label(self.data.source_id, self.data.input_name_id)
 
     def get_media_player_attributes(self, device_id: str) -> MediaPlayerAttributes | None:
         """
@@ -421,7 +421,7 @@ class CantonDevice(PersistentConnectionDevice):
             if resp is not None and len(resp) >= 3:
                 for i in range(0, len(resp) - 2, 3):
                     src_id, name_id, mode_id = resp[i], resp[i + 1], resp[i + 2]
-                    self.data.input_map[name_id] = (src_id, mode_id)
+                    self.data.input_map[src_id] = (name_id, mode_id)
 
             # Presets
             resp = await tunnel.async_send(*TCMD_PRESET_GET)
@@ -808,23 +808,30 @@ class CantonDevice(PersistentConnectionDevice):
             self.data.power_on = on
         self.push_update()
 
-    async def set_input(self, input_name: str) -> None:
+    async def set_input(self, label: str) -> None:
         """
-        Select an input by name.
+        Select an input by its display label, e.g. "HDMI 2 (PC)" or "OPT 1".
 
-        :param input_name: Input name, e.g. "TV", "CD", "NET"
+        :param label: Label as listed in ``source_list``
         """
-        name_id = TUNNEL_INPUT_NAMES_REVERSE.get(input_name)
-        if name_id is None:
-            return
+        for source_id, (name_id, _) in self.data.input_map.items():
+            if input_label(source_id, name_id) == label:
+                await self.set_input_source(source_id)
+                return
+        _LOG.warning("[%s] Unknown input: %s", self.log_id, label)
 
-        mapping = self.data.input_map.get(name_id)
-        if not mapping:
+    async def set_input_source(self, source_id: int) -> None:
+        """
+        Select an input by its physical source ID.
+
+        :param source_id: Physical source ID, see ``TUNNEL_PHYSICAL_SOURCES``
+        """
+        mapping = self.data.input_map.get(source_id)
+        if mapping is None:
             _LOG.warning(
-                "[%s] No source mapping for input %s (nameId=%s)",
+                "[%s] Input %s is not available on this device",
                 self.log_id,
-                input_name,
-                name_id,
+                TUNNEL_PHYSICAL_SOURCES.get(source_id, source_id),
             )
             return
 
@@ -832,7 +839,8 @@ class CantonDevice(PersistentConnectionDevice):
             if tunnel is None:
                 return
             await tunnel.async_send_fire(
-                *TCMD_SOURCE_SET, bytes([mapping[0], name_id, self.data.play_mode_id])
+                *TCMD_SOURCE_SET,
+                bytes([source_id, mapping[0], self.data.play_mode_id]),
             )
             await self._read_source(tunnel)
         self.push_update()
