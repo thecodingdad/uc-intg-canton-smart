@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.1
+
+- Fix the input select entity reporting the plain input name (e.g. "PC") while its option list
+  contains the full labels ("HDMI 2 (PC)"), so the current selection was never marked
+- Separate the input list from the source list: the input select always lists the physical inputs,
+  independent of the media player's inputs/presets setting
+- Connect to the device before registering the entities, so the first state the Remote receives is
+  already correct instead of being corrected right after subscribing
+- Pin ucapi to 0.7.0 — ucapi-framework 1.9.6 requires it, the previous 0.6.0 pin broke installation
+
 ## v1.0.0
 
 Initial release — port of the [ha-canton](https://github.com/thecodingdad/ha-canton) Home Assistant

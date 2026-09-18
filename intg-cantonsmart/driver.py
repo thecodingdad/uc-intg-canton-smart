@@ -34,6 +34,9 @@ async def main():
             CantonRemote,
             create_settings_entities,
         ],  # type: ignore[arg-type]
+        # Connect before registering the entities so the Remote shows the real
+        # state while the user picks entities during setup
+        require_connection_before_registry=True,
         driver_id="canton_smart",
     )
 

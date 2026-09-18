@@ -58,6 +58,32 @@ _REPEAT_PAYLOAD = {
 }
 
 
+def _initial_attributes(device: CantonDevice, device_id: str) -> dict[str, Any]:
+    """
+    Build the initial entity attributes from the device state.
+
+    The attribute dataclass uses the field names of ``MediaPlayerAttributes``; the entity
+    expects ``media_player.Attributes`` keys, so they are mapped here.
+
+    :param device: Device instance
+    :param device_id: Device identifier
+    :return: Attributes for the entity constructor
+    """
+    attributes = device.get_media_player_attributes(device_id)
+    if attributes is None:
+        return {Attributes.STATE: device.state}
+
+    result: dict[str, Any] = {}
+    for name, value in vars(attributes).items():
+        if value is None:
+            continue
+        try:
+            result[Attributes[name]] = value
+        except KeyError:  # field without a matching ucapi attribute
+            continue
+    return result
+
+
 class CantonMediaPlayer(MediaPlayerEntity):
     """Media player entity representing a Canton device."""
 
@@ -72,19 +98,13 @@ class CantonMediaPlayer(MediaPlayerEntity):
         self._device_id = config_device.identifier
         entity_id = create_entity_id(EntityTypes.MEDIA_PLAYER, config_device.identifier)
 
+        # Seed from the device so the first state the Remote receives after subscribing
+        # is already correct, without waiting for the first push update
         super().__init__(
             entity_id,
             config_device.name,
             FEATURES,
-            attributes={
-                Attributes.STATE: device.state,
-                Attributes.VOLUME: device.volume_percent,
-                Attributes.MUTED: False,
-                Attributes.SOURCE: device.source or "",
-                Attributes.SOURCE_LIST: device.source_list,
-                Attributes.SOUND_MODE: "",
-                Attributes.SOUND_MODE_LIST: [],
-            },
+            attributes=_initial_attributes(device, config_device.identifier),
             device_class=DeviceClasses.SPEAKER,
             options={
                 media_player.Options.SIMPLE_COMMANDS: simple_commands_for_model(

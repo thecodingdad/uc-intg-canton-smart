@@ -43,6 +43,7 @@ from const import (
     PLAY_STATUS_PAUSED,
     PLAY_STATUS_PLAYING,
     PLAY_STATUS_RECEIVING,
+    INITIAL_CONNECT_TIMEOUT,
     INPUT_NAME_UNASSIGNED,
     PRESET_COUNT,
     RECONNECT_BACKOFF_MAX,
@@ -142,6 +143,7 @@ class CantonDevice(PersistentConnectionDevice):
         self._tunnel: TunnelManager | None = None
         self.data = CantonState()
         self._connection_lost = asyncio.Event()
+        self._connection_ready = asyncio.Event()
 
     # =========================================================================
     # Properties
@@ -231,7 +233,15 @@ class CantonDevice(PersistentConnectionDevice):
         if self._device_config.source_list_mode == SOURCE_MODE_PRESETS:
             presets = self.data.configured_presets or list(range(1, PRESET_COUNT + 1))
             return [f"Preset {i}" for i in presets]
+        return self.input_list
 
+    @property
+    def input_list(self) -> list[str]:
+        """
+        Return the physical inputs of the device, regardless of the source list mode.
+
+        :return: Input labels, e.g. ["HDMI 1 (TV)", "HDMI 2 (PC)", "OPT 1", "NET"]
+        """
         labels = [
             input_label(source_id, name_id)
             for source_id, (name_id, _) in sorted(self.data.input_map.items())
@@ -241,14 +251,19 @@ class CantonDevice(PersistentConnectionDevice):
         ]
 
     @property
+    def current_input(self) -> str | None:
+        """Return the label of the currently selected physical input."""
+        if not self.data.source_id:
+            return None
+        return input_label(self.data.source_id, self.data.input_name_id)
+
+    @property
     def source(self) -> str | None:
         """Return the current input or preset, depending on the source list mode."""
         if self._device_config.source_list_mode == SOURCE_MODE_PRESETS:
             preset = self.data.active_preset
             return f"Preset {preset}" if preset > 0 else None
-        if not self.data.source_id:
-            return None
-        return input_label(self.data.source_id, self.data.input_name_id)
+        return self.current_input
 
     def get_media_player_attributes(self, device_id: str) -> MediaPlayerAttributes | None:
         """
@@ -309,6 +324,31 @@ class CantonDevice(PersistentConnectionDevice):
     # Connection management
     # =========================================================================
 
+    async def connect(self) -> bool:
+        """
+        Start the connection and wait for the initial state.
+
+        The base class only starts the connection loop, which would register the
+        entities before the device state is known — the Remote would then show
+        "unknown" for every entity while adding them. Waiting here keeps that
+        first registration accurate. A device that stays unreachable is not an
+        error: the connection loop keeps retrying in the background.
+
+        :return: True — the connection loop is running in any case
+        """
+        self._connection_ready.clear()
+        await super().connect()
+        try:
+            await asyncio.wait_for(
+                self._connection_ready.wait(), timeout=INITIAL_CONNECT_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            _LOG.debug(
+                "[%s] Device not reachable yet, continuing in the background",
+                self.log_id,
+            )
+        return True
+
     async def establish_connection(self) -> Any:
         """
         Connect to the device: LUCI first, then the tunnel, then read the initial state.
@@ -353,6 +393,7 @@ class CantonDevice(PersistentConnectionDevice):
 
     async def maintain_connection(self) -> None:
         """Push the initial state and block until the LUCI connection is lost."""
+        self._connection_ready.set()
         self.push_update()
         await self._connection_lost.wait()
         await self.close_connection()

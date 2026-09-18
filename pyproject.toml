@@ -1,6 +1,6 @@
 [project]
 name = "uc-intg-canton-smart"
-version = "1.0.0"
+version = "1.0.1"
 description = "Canton Smart Sound integration for Unfolded Circle Remote Two/3"
 readme = "README.md"
 requires-python = ">=3.11"

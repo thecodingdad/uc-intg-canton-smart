@@ -23,6 +23,8 @@ COMMAND_TIMEOUT = 5
 DISCOVERY_TIMEOUT = 5
 # Maximum backoff between reconnect attempts (handled by PersistentConnectionDevice)
 RECONNECT_BACKOFF_MAX = 60
+# How long to wait for the first connection before registering entities
+INITIAL_CONNECT_TIMEOUT = 15
 
 # Tunnel sharing
 # The device accepts only ONE tunnel connection at a time — a second controller

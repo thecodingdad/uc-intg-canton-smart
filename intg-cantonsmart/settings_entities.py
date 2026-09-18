@@ -141,13 +141,14 @@ def create_settings_entities(
 class _CantonSelect(SelectEntity):
     """Base class for Canton select entities."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-positional-arguments
         self,
         config_device: DeviceConfig,
         device: CantonDevice,
         suffix: str,
         label: str,
         options: list[str],
+        current: str | None = None,
     ) -> None:
         self._device = device
         super().__init__(
@@ -155,7 +156,7 @@ class _CantonSelect(SelectEntity):
             f"{config_device.name} {label}",
             attributes={
                 select.Attributes.STATE: select.States.ON,
-                select.Attributes.CURRENT_OPTION: "",
+                select.Attributes.CURRENT_OPTION: current or "",
                 select.Attributes.OPTIONS: options,
             },
             cmd_handler=self.handle_command,
@@ -207,7 +208,12 @@ class CantonInputSelect(_CantonSelect):
 
     def __init__(self, config_device: DeviceConfig, device: CantonDevice) -> None:
         super().__init__(
-            config_device, device, "input", "Input", device.source_list
+            config_device,
+            device,
+            "input",
+            "Input",
+            device.input_list,
+            device.current_input,
         )
 
     async def select_option(self, option: str) -> None:
@@ -219,8 +225,8 @@ class CantonInputSelect(_CantonSelect):
         self.update(
             {
                 select.Attributes.STATE: select.States.ON,
-                select.Attributes.OPTIONS: self._device.source_list,
-                select.Attributes.CURRENT_OPTION: self._device.data.input_name or "",
+                select.Attributes.OPTIONS: self._device.input_list,
+                select.Attributes.CURRENT_OPTION: self._device.current_input or "",
             }
         )
 
@@ -235,6 +241,7 @@ class CantonPlayModeSelect(_CantonSelect):
             "play_mode",
             "Play Mode",
             list(dict.fromkeys(TUNNEL_PLAY_MODES.values())),
+            device.data.play_mode,
         )
 
     async def select_option(self, option: str) -> None:
@@ -342,11 +349,20 @@ class _CantonSwitch(SwitchEntity):
             f"{config_device.name} {label}",
             features=[switch.Features.ON_OFF, switch.Features.TOGGLE],
             attributes={switch.Attributes.STATE: switch.States.UNKNOWN},
+            # state is filled in below, once the subclass fields exist
             device_class=switch.DeviceClasses.SWITCH,
             options={switch.Options.READABLE: True},
             cmd_handler=self.handle_command,
         )
         self.subscribe_to_device(device)
+
+    def seed_state(self) -> None:
+        """Set the initial state from the device, called by the subclass."""
+        value = self.current_value()
+        if value is not None:
+            self.attributes[switch.Attributes.STATE] = (
+                switch.States.ON if value else switch.States.OFF
+            )
 
     async def set_value(self, on: bool) -> None:
         """Apply the new switch value on the device."""
@@ -398,6 +414,7 @@ class CantonMuteSwitch(_CantonSwitch):
 
     def __init__(self, config_device: DeviceConfig, device: CantonDevice) -> None:
         super().__init__(config_device, device, "mute", "Mute")
+        self.seed_state()
 
     def current_value(self) -> bool | None:
         """Return the current mute state."""
@@ -423,6 +440,7 @@ class CantonMenuSwitch(_CantonSwitch):
         self._setting = setting
         self._inverted = inverted
         super().__init__(config_device, device, suffix, label)
+        self.seed_state()
 
     def current_value(self) -> bool | None:
         """Return the current menu value as a boolean."""

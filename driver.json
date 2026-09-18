@@ -1,8 +1,11 @@
 {
   "driver_id": "canton_smart",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "min_core_api": "0.20.0",
-  "name": { "en": "Canton Smart", "de": "Canton Smart" },
+  "name": {
+    "en": "Canton Smart",
+    "de": "Canton Smart"
+  },
   "icon": "uc:integration",
   "description": {
     "en": "Local control of Canton Smart Sound devices (Soundbar 10/9, Sounddeck 100, Soundbox 3, Smart Connect 5.1, Smart Amp 5.1) over LUCI and Tunnel protocols.",
