@@ -14,7 +14,7 @@ urls.Homepage = "https://github.com/thecodingdad/uc-intg-canton-smart"
 urls.Repository = "https://github.com/thecodingdad/uc-intg-canton-smart"
 
 dependencies = [
-    "ucapi==0.6.0",
+    "ucapi==0.7.0",
     "ucapi-framework==1.9.6",
     "pyee>=9.0",
 ]

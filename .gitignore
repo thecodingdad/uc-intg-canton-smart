@@ -105,3 +105,7 @@ config.json
 env
 licenses.json
 tools/licenses.md
+
+# Local driver test run
+.deps/
+config/

@@ -106,8 +106,21 @@ pip install -r requirements.txt
 UC_CONFIG_HOME=./config python intg-cantonsmart/driver.py
 ```
 
-Then add the driver in the Remote's web configurator as an external integration
-(`ws://<host>:9090`).
+The Remote discovers the driver via mDNS and lists it under *Integrations*. If mDNS does not reach
+the Remote (containers, VLANs, firewalls), register the driver through the Remote's REST API instead
+— note that `setup_data_schema` has to be taken from `driver.json`, otherwise the Remote treats the
+integration as already configured and never runs the setup:
+
+```bash
+curl -X POST "http://<remote-ip>/api/intg/drivers" \
+  --user "web-configurator:<pin>" \
+  -H 'Content-Type: application/json' \
+  -d "$(python3 -c 'import json; d=json.load(open("driver.json")); print(json.dumps({
+      "driver_id": d["driver_id"], "name": d["name"], "driver_url": "ws://<host>:9090",
+      "version": d["version"], "icon": d["icon"], "enabled": True,
+      "description": d["description"], "device_discovery": False,
+      "setup_data_schema": d["setup_data_schema"], "release_date": d["release_date"]}))')"
+```
 
 | Variable | Description | Default |
 |----------|-------------|---------|
