@@ -21,6 +21,9 @@ LSSDP_ST = "urn:schemas-upnp-org:device:DDMSServer:1"
 KEEPALIVE_INTERVAL = 30
 COMMAND_TIMEOUT = 5
 DISCOVERY_TIMEOUT = 5
+# Upper bound for closing a socket or stopping a background task. A peer that is
+# gone must never block a disconnect.
+CLOSE_TIMEOUT = 2
 # Maximum backoff between reconnect attempts (handled by PersistentConnectionDevice)
 RECONNECT_BACKOFF_MAX = 60
 # How long to wait for the first connection before registering entities

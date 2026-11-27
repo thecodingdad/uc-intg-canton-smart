@@ -360,6 +360,9 @@ class CantonDevice(PersistentConnectionDevice):
         :return: The LUCI connection
         :raises ConnectionError: If the device cannot be reached
         """
+        # A previous attempt that failed half-way must not leave a tunnel manager
+        # running — it would fight the new one over the single tunnel slot.
+        await self.close_connection()
         self._connection_lost.clear()
         self._luci.on_message = self._on_luci_message
         self._luci.on_connection_change = self._on_luci_connection_change
@@ -369,47 +372,86 @@ class CantonDevice(PersistentConnectionDevice):
                 f"Cannot connect to Canton device at {self.address}:{self._device_config.port}"
             )
 
-        self._tunnel = TunnelManager(
-            host=self._device_config.address,
-            port=self._device_config.tunnel_port,
-            luci=self._luci,
-            on_message=self._on_tunnel_message,
-            poll=self._poll_state,
-            log_id=self.log_id,
-            loop=self._loop,
-        )
-        await self._tunnel.start()
-
-        await self._fetch_initial_state()
-        if not self._tunnel.available:
-            await self._tunnel.stop()
-            await self._luci.async_disconnect()
-            raise ConnectionError(
-                f"Cannot reach Canton tunnel at "
-                f"{self.address}:{self._device_config.tunnel_port}"
+        try:
+            self._tunnel = TunnelManager(
+                host=self._device_config.address,
+                port=self._device_config.tunnel_port,
+                luci=self._luci,
+                on_message=self._on_tunnel_message,
+                poll=self._poll_state,
+                log_id=self.log_id,
+                loop=self._loop,
+                on_available_change=self._on_tunnel_available_change,
             )
+            await self._tunnel.start()
+
+            await self._fetch_initial_state()
+            if not self._tunnel.available:
+                raise ConnectionError(
+                    f"Cannot reach Canton tunnel at "
+                    f"{self.address}:{self._device_config.tunnel_port}"
+                )
+        except BaseException:
+            await self.close_connection()
+            raise
 
         return self._luci
 
     async def maintain_connection(self) -> None:
-        """Push the initial state and block until the LUCI connection is lost."""
+        """
+        Push the initial state and block until the LUCI connection is lost.
+
+        Also returns when ``disconnect()`` stops the connection loop. Its cancellation
+        can get lost on Python 3.11 when it coincides with an ``asyncio.wait_for``
+        finishing during the connect — without this check ``disconnect()`` would then
+        wait until the connection drops on its own.
+        """
         self._connection_ready.set()
         self.push_update()
-        await self._connection_lost.wait()
+
+        lost = asyncio.ensure_future(self._connection_lost.wait())
+        stopped = asyncio.ensure_future(self._stop_reconnect.wait())
+        try:
+            await asyncio.wait({lost, stopped}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            lost.cancel()
+            stopped.cancel()
+        if self._stop_reconnect.is_set():
+            return  # disconnect() closes the connection
+
         await self.close_connection()
         raise ConnectionError(f"Connection to {self.log_id} lost")
 
     async def close_connection(self) -> None:
-        """Close the tunnel and LUCI connections."""
-        if self._tunnel:
-            await self._tunnel.stop()
-            self._tunnel = None
-        await self._luci.async_disconnect()
+        """
+        Close the tunnel and LUCI connections.
+
+        Never raises (except on cancellation): the framework calls this from its
+        connection loop and from ``disconnect()``, and an exception there would leave
+        the device half-connected.
+        """
+        tunnel, self._tunnel = self._tunnel, None
+        if tunnel is not None:
+            try:
+                await tunnel.stop()
+            except Exception:  # pylint: disable=broad-exception-caught
+                _LOG.exception("[%s] Error while stopping the tunnel", self.log_id)
+        try:
+            await self._luci.async_disconnect()
+        except Exception:  # pylint: disable=broad-exception-caught
+            _LOG.exception("[%s] Error while closing the connection", self.log_id)
 
     def _on_luci_connection_change(self, connected: bool) -> None:
         """Handle LUCI connection loss — this is a real device disconnect."""
         if not connected:
             self._loop.call_soon_threadsafe(self._connection_lost.set)
+
+    def _on_tunnel_available_change(self, available: bool) -> None:
+        """Push the tunnel becoming reachable or unreachable to the entities."""
+        _LOG.debug(
+            "[%s] Tunnel %s", self.log_id, "reachable" if available else "unreachable"
+        )
+        self.push_update()
 
     @asynccontextmanager
     async def _tunnel_session(self) -> AsyncIterator[TunnelProtocol | None]:
