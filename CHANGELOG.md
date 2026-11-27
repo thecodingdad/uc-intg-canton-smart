@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.2
+
+- Fix the device never reconnecting after it dropped off the network, rebooted or its firmware
+  stopped answering: closing the lost connection cancelled itself, so the loss was never reported
+  and the device kept its last state. A lost connection is now detected within about 35 seconds,
+  the entities become unavailable and the integration reconnects once the device is back
+  (same bug as [ha-canton#3](https://github.com/thecodingdad/ha-canton/issues/3))
+- Fix disconnecting (Remote standby, reconfiguration) failing after such a loss, which left the
+  connection marked as connected — a later connect then reused the dead connection
+- Fix disconnect waiting until the connection dropped by itself when it was requested in the
+  middle of a connect
+- Stop a half-finished connection attempt's tunnel manager before retrying, so it cannot fight the
+  next one over the device's single tunnel slot
+- Tunnel reachability changes are pushed to the entities right away
+- Add tests against a simulated device (outages, reconnect, disconnect, tunnel sharing). They run
+  for pull requests and before every release build
+
 ## v1.0.1
 
 - Fix the input select entity reporting the plain input name (e.g. "PC") while its option list
